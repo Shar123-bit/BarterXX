@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BarterX — Dashboard</title>
+<meta name="description" content="BarterX marketplace dashboard — browse, list, and trade items.">
+<link rel="stylesheet" href="styles.css">
+<style>
+body { display:flex; flex-direction:column; min-height:100vh; }
+
+/* NAVBAR */
+.navbar {
+  height:var(--navbar-h); background:rgba(8,8,16,0.9);
+  backdrop-filter:blur(20px); border-bottom:1px solid var(--border);
+  display:flex; align-items:center; justify-content:space-between;
+  padding:0 24px; position:fixed; top:0; left:0; right:0; z-index:200;
+}
+.nav-logo {
+  font-size:20px; font-weight:800;
+  background:linear-gradient(135deg,var(--primary-light),var(--accent));
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+}
+.nav-right { display:flex; align-items:center; gap:12px; }
+.nav-user { display:flex; align-items:center; gap:10px; cursor:pointer; }
+.nav-user-name { font-size:14px; font-weight:600; }
+
+/* LAYOUT */
+.app-layout { display:flex; margin-top:var(--navbar-h); min-height:calc(100vh - var(--navbar-h)); }
+
+/* SIDEBAR */
+.sidebar {
+  width:var(--sidebar-w); background:var(--bg-surface);
+  border-right:1px solid var(--border); padding:20px 12px;
+  position:fixed; top:var(--navbar-h); bottom:0; overflow-y:auto;
+}
+.sidebar-item {
+  display:flex; align-items:center; gap:12px;
+  padding:11px 14px; border-radius:var(--radius-md);
+  font-size:14px; font-weight:500; color:var(--text-secondary);
+  cursor:pointer; transition:var(--transition); margin-bottom:4px;
+}
+.sidebar-item:hover { background:var(--bg-glass); color:var(--text-primary); }
+.sidebar-item.active {
+  background:rgba(108,99,255,0.15); color:var(--primary-light);
+  border:1px solid rgba(108,99,255,0.2);
+}
+.sidebar-icon { font-size:18px; width:24px; text-align:center; }
+.sidebar-divider { height:1px; background:var(--border); margin:12px 0; }
+
+/* MAIN */
+.main { margin-left:var(--sidebar-w); flex:1; padding:32px; max-width:1200px; }
+
+/* STATS ROW */
+.stats-row { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:16px; margin-bottom:32px; }
+
+/* BARTER MODAL TRADE DISPLAY */
+.trade-display {
+  display:flex; align-items:center; gap:12px;
+  background:var(--bg-surface); border-radius:var(--radius-md); padding:14px;
+}
+.trade-box { flex:1; text-align:center; }
+.trade-label { font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:4px; }
+.trade-name { font-size:14px; font-weight:700; color:var(--text-primary); }
+
+@media(max-width:768px){
+  .sidebar { display:none; }
+  .main { margin-left:0; padding:20px; }
+}
+</style>
+</head>
+<body>
+
+<!-- NAVBAR -->
+<nav class="navbar">
+  <div class="nav-logo">⇄ BarterX</div>
+  <div class="nav-right">
+    <div class="nav-user" id="nav-user">
+      <div class="avatar" id="nav-avatar">?</div>
+      <div class="nav-user-name" id="nav-name">Loading…</div>
+    </div>
+    <button class="btn btn-ghost btn-sm" onclick="logout()">Sign Out</button>
+  </div>
+</nav>
+
+<div class="app-layout">
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-item active" id="nav-browse"   onclick="showView('browse')">
+    <span class="sidebar-icon">🏪</span> Browse Market
+  </div>
+  <div class="sidebar-item" id="nav-listings" onclick="showView('listings')">
+    <span class="sidebar-icon">📦</span> My Listings
+  </div>
+  <div class="sidebar-item" id="nav-requests" onclick="showView('requests')">
+    <span class="sidebar-icon">🔁</span> Barter Requests
+  </div>
+  <div class="sidebar-divider"></div>
+  <div class="sidebar-item" id="nav-profile"  onclick="showView('profile')">
+    <span class="sidebar-icon">👤</span> My Profile
+  </div>
+</aside>
+
+<!-- MAIN CONTENT -->
+<main class="main" id="main-content">
+  <div class="empty-state"><div class="spinner" style="width:36px;height:36px;"></div></div>
+</main>
+</div>
+
+<!-- ADD LISTING MODAL -->
+<div class="modal-overlay hidden" id="add-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">📦 Add New Listing</div>
+      <button class="btn-icon" onclick="closeModal('add-modal')">✕</button>
+    </div>
+    <form id="add-form" onsubmit="submitListing(event)">
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Item Title *</label>
+        <input id="a-title" class="form-input" placeholder="What are you listing?" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Description *</label>
+        <textarea id="a-desc" class="form-input form-textarea" placeholder="Describe your item…" required></textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Category</label>
+          <select id="a-cat" class="form-select">
+            <option>Electronics</option><option>Clothing</option><option>Books</option>
+            <option>Furniture</option><option>Sports</option><option>Toys</option>
+            <option>Tools</option><option>Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Condition</label>
+          <select id="a-cond" class="form-select">
+            <option>New</option><option>Like New</option><option>Good</option><option>Fair</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Want in Exchange</label>
+        <input id="a-want" class="form-input" placeholder="e.g. Books, Headphones, anything…">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Image URL (optional)</label>
+        <input id="a-img" class="form-input" placeholder="https://…">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-ghost" onclick="closeModal('add-modal')">Cancel</button>
+      <button type="submit" class="btn btn-primary" id="add-btn">Post Listing</button>
+    </div>
+    </form>
+  </div>
+</div>
+
+<!-- BARTER MODAL -->
+<div class="modal-overlay hidden" id="barter-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">🤝 Propose a Trade</div>
+      <button class="btn-icon" onclick="closeModal('barter-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="trade-display">
+        <div class="trade-box">
+          <div class="trade-label">They Offer</div>
+          <div class="trade-name" id="b-want-name">—</div>
+        </div>
+        <div style="font-size:24px; color:var(--primary);">⇄</div>
+        <div class="trade-box">
+          <div class="trade-label">You Offer</div>
+          <select id="b-offer" class="form-select"></select>
+        </div>
+      </div>
+      <p style="font-size:13px;color:var(--text-muted);">Select one of your listings to offer in exchange.</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('barter-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitBarter()" id="barter-btn">Send Request</button>
+    </div>
+  </div>
+</div>
+
+<!-- EXCHANGE MODAL -->
+<div class="modal-overlay hidden" id="exchange-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">📍 Coordinate Exchange</div>
+      <button class="btn-icon" onclick="closeModal('exchange-modal')">✕</button>
+    </div>
+    <div class="modal-body" id="exchange-body">
+      <div class="spinner" style="width:24px;height:24px;margin:20px auto;"></div>
+    </div>
+    <div class="modal-footer" id="exchange-footer">
+      <button class="btn btn-ghost" onclick="closeModal('exchange-modal')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast-container"></div>
+
+<script>
+const BASE = 'http://localhost:8085';
+let user = null;
+let allItems = [], myItems = [], myRequests = [];
+let barterTargetItemId = null;
+
+// ── INIT ─────────────────────────────────────────────────
+(function init() {
+  const stored = localStorage.getItem('bx_user');
+  if (!stored) { window.location.href = 'index.html'; return; }
+  user = JSON.parse(stored);
+  document.getElementById('nav-name').textContent = user.name;
+  document.getElementById('nav-avatar').textContent = user.name.charAt(0).toUpperCase();
+  loadAll();
+})();
+
+async function loadAll() {
+  try {
+    const [itemsRes, reqRes] = await Promise.all([
+      fetch(`${BASE}/api/items`),
+      fetch(`${BASE}/api/barter/user/${user.id}`)
+    ]);
+    allItems = await itemsRes.json();
+    myRequests = await reqRes.json();
+    myItems = allItems.filter(i => i.owner && i.owner.id === user.id);
+    showView('browse');
+  } catch(e) {
+    showToast('Cannot connect to server. Start Spring Boot first.', 'error');
+  }
+}
+
+// ── VIEWS ─────────────────────────────────────────────────
+function showView(view) {
+  ['browse','listings','requests','profile'].forEach(v => {
+    const el = document.getElementById('nav-'+v);
+    if(el) el.classList.toggle('active', v === view);
+  });
+  const main = document.getElementById('main-content');
+  if (view === 'browse')    main.innerHTML = renderBrowse();
+  if (view === 'listings')  main.innerHTML = renderListings();
+  if (view === 'requests')  main.innerHTML = renderRequests();
+  if (view === 'profile')   main.innerHTML = renderProfile();
+}
+
+// ── BROWSE ────────────────────────────────────────────────
+function renderBrowse() {
+  const others = allItems.filter(i => i.owner && i.owner.id !== user.id);
+  const categories = ['All', ...new Set(allItems.map(i => i.category).filter(Boolean))];
+  const chips = categories.map((c,i) =>
+    `<span class="chip ${i===0?'active':''}" onclick="filterCat(this,'${c}')">${c}</span>`
+  ).join('');
+
+  const cards = others.length ? others.map(itemCard).join('') :
+    `<div class="empty-state"><div class="empty-state-icon">🏪</div><h3>No listings yet</h3><p>Be the first to post an item!</p></div>`;
+
+  return `
+  <div class="section-header">
+    <div class="section-title"><span class="section-title-icon">🏪</span> Browse Market</div>
+    <button class="btn btn-primary btn-sm" onclick="openModal('add-modal')">+ List Item</button>
+  </div>
+  <div class="search-bar">
+    <div class="search-input-wrap flex-1">
+      <span class="search-icon">🔍</span>
+      <input class="form-input" id="search-inp" placeholder="Search listings…" oninput="doSearch()" style="padding-left:40px;">
+    </div>
+  </div>
+  <div class="chip-group" style="margin-bottom:24px;" id="cat-chips">${chips}</div>
+  <div class="item-grid" id="browse-grid">${cards}</div>`;
+}
+
+function itemCard(item) {
+  const img = item.imageUrl
+    ? `<img src="${item.imageUrl}" alt="${item.title}" onerror="this.parentElement.innerHTML='📦'">`
+    : '📦';
+  const cond = item.condition ? `<span class="badge badge-primary">${item.condition}</span>` : '';
+  const want = item.wantInExchange ? `<div class="listing-card-want">Wants: ${item.wantInExchange}</div>` : '';
+  const owner = item.owner ? `<div class="listing-card-owner">👤 ${item.owner.name || 'User '+item.owner.id}</div>` : '';
+  return `
+  <div class="listing-card">
+    <div class="listing-card-img">${img}</div>
+    <div class="listing-card-body">
+      <div class="listing-card-title">${item.title}</div>
+      <div class="listing-card-desc">${item.description || ''}</div>
+      <div class="listing-card-meta">${cond}${want}</div>
+      ${owner}
+    </div>
+    <div class="listing-card-footer">
+      <button class="btn btn-primary btn-sm" style="flex:1" onclick="openBarter(${item.id},'${item.title}')">🤝 Propose Trade</button>
+    </div>
+  </div>`;
+}
+
+function filterCat(el, cat) {
+  document.querySelectorAll('#cat-chips .chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  const list = cat === 'All' ? allItems.filter(i => i.owner && i.owner.id !== user.id)
+    : allItems.filter(i => i.category === cat && i.owner && i.owner.id !== user.id);
+  document.getElementById('browse-grid').innerHTML = list.length ? list.map(itemCard).join('') :
+    `<div class="empty-state"><div class="empty-state-icon">🔍</div><h3>No items in this category</h3></div>`;
+}
+
+function doSearch() {
+  const q = document.getElementById('search-inp').value.toLowerCase();
+  const filtered = allItems.filter(i =>
+    i.owner && i.owner.id !== user.id &&
+    (i.title?.toLowerCase().includes(q) || i.description?.toLowerCase().includes(q))
+  );
+  document.getElementById('browse-grid').innerHTML = filtered.length ? filtered.map(itemCard).join('') :
+    `<div class="empty-state"><div class="empty-state-icon">🔍</div><h3>No results for "${q}"</h3></div>`;
+}
+
+// ── MY LISTINGS ───────────────────────────────────────────
+function renderListings() {
+  const cards = myItems.length ? myItems.map(myItemCard).join('') :
+    `<div class="empty-state"><div class="empty-state-icon">📦</div><h3>No listings yet</h3><p>Start by posting your first item.</p></div>`;
+  return `
+  <div class="section-header">
+    <div class="section-title"><span class="section-title-icon">📦</span> My Listings</div>
+    <button class="btn btn-primary btn-sm" onclick="openModal('add-modal')">+ Add Listing</button>
+  </div>
+  <div class="stats-row">
+    <div class="stat-card"><div class="stat-icon stat-icon-primary">📦</div><div><div class="stat-value">${myItems.length}</div><div class="stat-label">Active Listings</div></div></div>
+    <div class="stat-card"><div class="stat-icon stat-icon-accent">🔁</div><div><div class="stat-value">${myRequests.length}</div><div class="stat-label">Trade Requests</div></div></div>
+  </div>
+  <div class="item-grid">${cards}</div>`;
+}
+
+function myItemCard(item) {
+  const img = item.imageUrl
+    ? `<img src="${item.imageUrl}" alt="${item.title}" onerror="this.parentElement.innerHTML='📦'">`
+    : '📦';
+  return `
+  <div class="listing-card">
+    <div class="listing-card-img">${img}</div>
+    <div class="listing-card-body">
+      <div class="listing-card-title">${item.title}</div>
+      <div class="listing-card-desc">${item.description || ''}</div>
+      <div class="listing-card-meta">
+        ${item.condition ? `<span class="badge badge-primary">${item.condition}</span>` : ''}
+        ${item.category ? `<span class="badge badge-pending">${item.category}</span>` : ''}
+      </div>
+    </div>
+    <div class="listing-card-footer">
+      <button class="btn btn-danger btn-sm" style="flex:1" onclick="deleteItem(${item.id})">🗑 Remove</button>
+    </div>
+  </div>`;
+}
+
+async function deleteItem(id) {
+  if (!confirm('Remove this listing?')) return;
+  await fetch(`${BASE}/api/items/${id}`, { method: 'DELETE' });
+  showToast('Listing removed', 'success');
+  await loadAll();
+  showView('listings');
+}
+
+// ── REQUESTS ──────────────────────────────────────────────
+// ── REQUESTS ──────────────────────────────────────────────
+function renderRequests() {
+  const incoming = myRequests.filter(r => r.requester?.id !== user.id && r.status === 'PENDING');
+  const outgoing = myRequests.filter(r => r.requester?.id === user.id && r.status !== 'ACCEPTED');
+  const accepted = myRequests.filter(r => r.status === 'ACCEPTED');
+
+  const incHtml = incoming.length ? incoming.map(r => requestCard(r, true)).join('') :
+    `<div class="empty-state" style="padding:32px;"><div class="empty-state-icon">📭</div><h3>No incoming requests</h3></div>`;
+  const outHtml = outgoing.length ? outgoing.map(r => requestCard(r, false)).join('') :
+    `<div class="empty-state" style="padding:32px;"><div class="empty-state-icon">📤</div><h3>No outgoing requests</h3></div>`;
+  const accHtml = accepted.length ? accepted.map(r => requestCard(r, false)).join('') :
+    `<div class="empty-state" style="padding:32px;"><div class="empty-state-icon">🤝</div><h3>No accepted trades yet</h3></div>`;
+
+  return `
+  <div class="section-header">
+    <div class="section-title"><span class="section-title-icon">🔁</span> Barter Requests</div>
+    <button class="btn btn-ghost btn-sm" onclick="loadAll().then(()=>showView('requests'))">↻ Refresh</button>
+  </div>
+  <h3 style="font-size:16px;margin-bottom:16px;color:var(--text-secondary);">📥 Incoming Requests (${incoming.length})</h3>
+  <div style="display:flex;flex-direction:column;gap:14px;margin-bottom:32px;">${incHtml}</div>
+  <h3 style="font-size:16px;margin-bottom:16px;color:var(--text-secondary);">🤝 Accepted Trades (${accepted.length})</h3>
+  <div style="display:flex;flex-direction:column;gap:14px;margin-bottom:32px;">${accHtml}</div>
+  <h3 style="font-size:16px;margin-bottom:16px;color:var(--text-secondary);">📤 Outgoing (${outgoing.length})</h3>
+  <div style="display:flex;flex-direction:column;gap:14px;">${outHtml}</div>`;
+}
+
+function requestCard(r, showActions) {
+  const statusBadge = `<span class="badge badge-${r.status?.toLowerCase()}">${r.status}</span>`;
+  const actions = showActions && r.status === 'PENDING' ? `
+    <button class="btn btn-accent btn-sm" onclick="updateRequest(${r.id},'ACCEPTED')">✅ Accept</button>
+    <button class="btn btn-danger btn-sm"  onclick="updateRequest(${r.id},'REJECTED')">❌ Reject</button>` : '';
+  const isRequester = r.requester?.id === user.id;
+  const labelWant = isRequester ? 'YOU WANT' : 'THEY WANT';
+  const labelOffer = isRequester ? 'YOU OFFER' : 'THEY OFFER';
+
+  return `
+  <div class="request-card">
+    <div class="request-items">
+      <div class="request-item-box">
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">${labelWant}</div>
+        <div style="font-weight:700;">${r.itemRequested?.title || '—'}</div>
+        <div style="font-size:12px;color:var(--text-muted);">by ${r.itemRequested?.owner?.name || '?'}</div>
+      </div>
+      <div class="request-arrow">⇄</div>
+      <div class="request-item-box">
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">${labelOffer}</div>
+        <div style="font-weight:700;">${r.itemOffered?.title || '—'}</div>
+        <div style="font-size:12px;color:var(--text-muted);">by ${r.requester?.name || '?'}</div>
+      </div>
+    </div>
+    <div class="request-footer">
+      ${statusBadge}
+      <div style="display:flex;gap:8px;">
+        ${actions}
+        ${r.status === 'ACCEPTED' ? `<button class="btn btn-primary btn-sm" onclick="openExchange(${r.id})">📍 Coordinate Exchange</button>` : ''}
+      </div>
+    </div>
+  </div>`;
+}
+
+async function updateRequest(id, status) {
+  await fetch(`${BASE}/api/barter/${id}/${status}`, { method:'PUT' });
+  showToast(status === 'ACCEPTED' ? '✅ Trade accepted! Items swapped.' : '❌ Request rejected.', status === 'ACCEPTED' ? 'success' : 'info');
+  await loadAll();
+  showView('requests');
+}
+
+// ── PROFILE ───────────────────────────────────────────────
+function renderProfile() {
+  return `
+  <div class="section-title" style="margin-bottom:24px;"><span class="section-title-icon">👤</span> My Profile</div>
+  <div class="profile-header">
+    <div class="avatar avatar-xl">${user.name.charAt(0).toUpperCase()}</div>
+    <div>
+      <div style="font-size:24px;font-weight:800;">${user.name}</div>
+      <div style="color:var(--text-secondary);margin-top:4px;">📧 ${user.email}</div>
+      <div style="color:var(--text-secondary);">📍 ${user.location || 'Not set'}</div>
+      <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;">
+        <span class="badge badge-primary">ID: ${user.id}</span>
+        <span class="badge badge-accepted">${myItems.length} Listings</span>
+        <span class="badge badge-pending">${myRequests.length} Requests</span>
+      </div>
+    </div>
+  </div>
+  <div class="stats-row">
+    <div class="stat-card"><div class="stat-icon stat-icon-primary">📦</div><div><div class="stat-value">${myItems.length}</div><div class="stat-label">My Listings</div></div></div>
+    <div class="stat-card"><div class="stat-icon stat-icon-accent">🔁</div><div><div class="stat-value">${myRequests.filter(r=>r.status==='PENDING').length}</div><div class="stat-label">Pending Trades</div></div></div>
+    <div class="stat-card"><div class="stat-icon stat-icon-success">✅</div><div><div class="stat-value">${myRequests.filter(r=>r.status==='ACCEPTED').length}</div><div class="stat-label">Completed Trades</div></div></div>
+  </div>`;
+}
+
+// ── LISTING SUBMIT ─────────────────────────────────────────
+async function submitListing(e) {
+  e.preventDefault();
+  const btn = document.getElementById('add-btn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
+  try {
+    const res = await fetch(`${BASE}/api/items`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        title: document.getElementById('a-title').value,
+        description: document.getElementById('a-desc').value,
+        category: document.getElementById('a-cat').value,
+        condition: document.getElementById('a-cond').value,
+        wantInExchange: document.getElementById('a-want').value,
+        imageUrl: document.getElementById('a-img').value || null,
+        owner: { id: user.id }
+      })
+    });
+    const item = await res.json();
+    showToast(`"${item.title}" listed successfully! 🎉`, 'success');
+    closeModal('add-modal');
+    document.getElementById('add-form').reset();
+    await loadAll();
+    showView('listings');
+  } catch { showToast('Failed to add item', 'error'); }
+  finally { btn.disabled=false; btn.innerHTML='Post Listing'; }
+}
+
+// ── BARTER ────────────────────────────────────────────────
+function openBarter(itemId, itemTitle) {
+  if (!myItems.length) { showToast('You need at least one listing to propose a trade.','error'); return; }
+  barterTargetItemId = itemId;
+  document.getElementById('b-want-name').textContent = itemTitle;
+  const opts = myItems.map(i=>`<option value="${i.id}">${i.title}</option>`).join('');
+  document.getElementById('b-offer').innerHTML = opts;
+  openModal('barter-modal');
+}
+
+async function submitBarter() {
+  const btn = document.getElementById('barter-btn');
+  btn.disabled=true; btn.innerHTML='<span class="spinner"></span>';
+  try {
+    await fetch(`${BASE}/api/barter/request`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        requester: { id: user.id },
+        itemRequested: { id: barterTargetItemId },
+        itemOffered: { id: parseInt(document.getElementById('b-offer').value) }
+      })
+    });
+    showToast('Trade request sent! 🤝', 'success');
+    closeModal('barter-modal');
+    await loadAll();
+  } catch { showToast('Failed to send request','error'); }
+  finally { btn.disabled=false; btn.innerHTML='Send Request'; }
+}
+
+// ── EXCHANGE COORDINATION ─────────────────────────────────
+async function openExchange(id) {
+  openModal('exchange-modal');
+  const body = document.getElementById('exchange-body');
+  const footer = document.getElementById('exchange-footer');
+  body.innerHTML = '<div class="spinner" style="width:24px;height:24px;margin:20px auto;"></div>';
+  footer.innerHTML = '<button class="btn btn-ghost" onclick="closeModal(\'exchange-modal\')">Close</button>';
+
+  try {
+    const res = await fetch(`${BASE}/api/barter/${id}/contact`);
+    const data = await res.json();
+
+    const amRequester = data.requester.id === user.id;
+    const otherUser = amRequester ? data.owner : data.requester;
+
+    let html = `
+      <div style="margin-bottom:16px;padding:12px;background:rgba(108,99,255,0.1);border:1px solid rgba(108,99,255,0.3);border-radius:8px;text-align:center;">
+        <strong>Contact the user to exchange items</strong>
+      </div>
+      
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+        <div class="trade-box" style="background:var(--bg-glass);padding:12px;border-radius:8px;border:1px solid var(--border);">
+          <div class="trade-label">Your Info</div>
+          <div style="font-weight:700;margin-bottom:4px;">${user.name}</div>
+          <div style="font-size:13px;color:var(--text-secondary);">${user.phone || 'No phone'}</div>
+          <div style="font-size:13px;color:var(--text-secondary);">${user.address || 'No address'}</div>
+        </div>
+        <div class="trade-box" style="background:var(--bg-glass);padding:12px;border-radius:8px;border:1px solid var(--border);">
+          <div class="trade-label">Their Info</div>
+          <div style="font-weight:700;margin-bottom:4px;">${otherUser.name}</div>
+          <div style="font-size:13px;color:var(--text-secondary);">${otherUser.phone || 'No phone'}</div>
+          <div style="font-size:13px;color:var(--text-secondary);">${otherUser.address || 'No address'}</div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Meeting Location</label>
+        <div style="display:flex;gap:8px;">
+          <input type="text" id="meet-loc-${id}" class="form-input" placeholder="e.g. Central Park Cafe" value="${data.meetingLocation || ''}">
+          <button class="btn btn-secondary" onclick="updateMeeting(${id})">Save</button>
+        </div>
+      </div>
+    `;
+
+    if (data.exchangeStatus === 'COMPLETED') {
+       html += `
+         <div style="margin-top:16px;padding:12px;background:rgba(0,212,170,0.1);border:1px solid rgba(0,212,170,0.3);border-radius:8px;text-align:center;color:var(--success);">
+           <strong>✅ Physical Exchange Completed</strong>
+         </div>`;
+    } else {
+       footer.innerHTML = `
+         <button class="btn btn-ghost" onclick="closeModal('exchange-modal')">Close</button>
+         <button class="btn btn-success" onclick="completeExchange(${id})">Mark as Completed</button>`;
+    }
+
+    body.innerHTML = html;
+  } catch(e) {
+    body.innerHTML = '<div class="empty-state">Failed to load contact info.</div>';
+  }
+}
+
+async function updateMeeting(id) {
+  const loc = document.getElementById(`meet-loc-${id}`).value;
+  try {
+    await fetch(`${BASE}/api/barter/${id}/meeting`, {
+      method:'PUT', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ meetingLocation: loc })
+    });
+    showToast('Meeting location updated', 'success');
+  } catch { showToast('Failed to update location', 'error'); }
+}
+
+async function completeExchange(id) {
+  if (!confirm('Mark this physical exchange as fully completed?')) return;
+  try {
+    await fetch(`${BASE}/api/barter/${id}/complete`, { method:'PUT' });
+    showToast('Exchange marked as completed! 🎉', 'success');
+    openExchange(id); // reload modal content
+  } catch { showToast('Failed to mark complete', 'error'); }
+}
+
+// ── UTILS ──────────────────────────────────────────────────
+function openModal(id)  { document.getElementById(id).classList.remove('hidden'); }
+function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+document.querySelectorAll('.modal-overlay').forEach(m =>
+  m.addEventListener('click', e => { if(e.target === m) closeModal(m.id); })
+);
+
+function showToast(msg, type='info') {
+  const icons = {success:'✅', error:'❌', info:'ℹ️'};
+  const el = document.createElement('div');
+  el.className = `toast toast-${type}`;
+  el.innerHTML = `<span class="toast-icon">${icons[type]}</span><span class="toast-msg">${msg}</span>`;
+  document.getElementById('toast-container').appendChild(el);
+  setTimeout(() => el.remove(), 3200);
+}
+
+function logout() {
+  localStorage.removeItem('bx_user');
+  window.location.href = 'index.html';
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simple BarterX</title>
+    <style>
+        body { font-family: Arial; background: #f4f4f4; text-align: center; }
+        .box {
+            background: white;
+            margin: 20px auto;
+            padding: 15px;
+            width: 300px;
+            border-radius: 10px;
+            box-shadow: 0 0 5px #ccc;
+        }
+        input, button {
+            margin: 5px;
+            padding: 8px;
+            width: 90%;
+        }
+        button {
+            background: blue;
+            color: white;
+            border: none;
+        }
+        .item {
+            border: 1px solid #ddd;
+            margin: 5px;
+            padding: 5px;
+        }
+    </style>
+</head>
+
+<body>
+
+<h1>🔁 Simple Barter System</h1>
+
+<!-- ADD USER -->
+<div class="box">
+    <h3>Add User</h3>
+    <input id="uname" placeholder="Name">
+    <input id="uemail" placeholder="Email">
+    <input id="upass" placeholder="Password">
+    <button onclick="addUser()">Add User</button>
+</div>
+
+<!-- ADD ITEM -->
+<div class="box">
+    <h3>Add Item</h3>
+    <input id="title" placeholder="Item Name">
+    <input id="desc" placeholder="Description">
+    <input id="ownerId" placeholder="User ID">
+    <button onclick="addItem()">Add Item</button>
+</div>
+
+<!-- VIEW ITEMS -->
+<div class="box">
+    <h3>All Listings</h3>
+    <button onclick="loadItems()">Load Items</button>
+    <div id="items"></div>
+</div>
+
+<!-- BARTER -->
+<div class="box">
+    <h3>Barter</h3>
+    <input id="reqUser" placeholder="Your User ID">
+    <input id="wantItem" placeholder="Item ID you want">
+    <input id="offerItem" placeholder="Your Item ID">
+    <button onclick="sendRequest()">Send Request</button>
+</div>
+
+<script>
+
+const BASE = "http://localhost:8085";
+
+// ADD USER
+function addUser() {
+    fetch(BASE + "/api/auth/register", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+            name: uname.value,
+            email: uemail.value,
+            password: upass.value,
+            location: "NA"
+        })
+    })
+    .then(res => res.json())
+    .then(data => alert("User Created ID: " + data.id));
+}
+
+// ADD ITEM
+function addItem() {
+    fetch(BASE + "/api/items", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+            title: title.value,
+            description: desc.value,
+            category: "General",
+            owner: { id: ownerId.value }
+        })
+    })
+    .then(res => res.json())
+    .then(data => alert("Item Added ID: " + data.id));
+}
+
+// LOAD ITEMS
+function loadItems() {
+    fetch(BASE + "/api/items")
+    .then(res => res.json())
+    .then(data => {
+        let html = "";
+        data.forEach(item => {
+            html += `<div class="item">
+                        ${item.title} (ID: ${item.id}) <br>
+                        Owner: ${item.owner.id}
+                     </div>`;
+        });
+        document.getElementById("items").innerHTML = html;
+    });
+}
+
+// SEND BARTER REQUEST
+function sendRequest() {
+    fetch(BASE + "/api/barter/request", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+            requester: { id: reqUser.value },
+            itemRequested: { id: wantItem.value },
+            itemOffered: { id: offerItem.value }
+        })
+    })
+    .then(res => res.json())
+    .then(data => alert("Barter Request Sent!"));
+}
+
+</script>
+
+</body>
+</html>
